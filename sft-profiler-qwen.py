@@ -16,6 +16,7 @@ from transformers import AutoTokenizer
 from datetime import datetime, timedelta
 import logging
 import socket
+from functools import partial
 
 from limo import LIMODataLoader
 from qwen import Qwen
@@ -95,11 +96,11 @@ class OptimConfig:
 TIME_FORMAT_STR: str = "%b_%d_%H_%M_%S"
 
 
-def trace_handler(prof: torch.profiler.profile):
+def trace_handler(prof: torch.profiler.profile, freq: int):
     # Prefix for file names.
     host_name = socket.gethostname()
     timestamp = datetime.now().strftime(TIME_FORMAT_STR)
-    file_prefix = f"{host_name}_{timestamp}_og-qwen"
+    file_prefix = f"{host_name}_{timestamp}_og-qwen-{freq}"
 
     # Construct the trace file.
     prof.export_chrome_trace(f"{file_prefix}.json.gz")
@@ -135,7 +136,7 @@ def main():
                 record_shapes=True,
                 profile_memory=True,
                 with_stack=True,
-                on_trace_ready=trace_handler,
+                on_trace_ready=partial(trace_handler, freq=grad_checkpointing_frequency),
             ) as prof:
                 prof.step()
                 with record_function("## initialization ##"):
